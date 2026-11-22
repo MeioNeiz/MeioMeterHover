@@ -1,0 +1,8 @@
+package-as: MeterHover
+
+move-folders:
+  MeterHover/addons/MeterHover: MeterHover
+
+ignore:
+  - docs
+  - README.md

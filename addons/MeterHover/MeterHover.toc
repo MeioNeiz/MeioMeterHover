@@ -1,0 +1,10 @@
+## Interface: 16001
+## Title: MeterHover
+## Notes: Rest the mouse on a row of Blizzard's damage meter to preview its breakdown. /meterhover
+## Version: 1.0.0
+## Author: MeioNeiz
+## X-Website: https://github.com/MeioNeiz/MeterHover
+## X-License: MIT
+## SavedVariables: MeterHoverDB
+
+MeterHover.lua
