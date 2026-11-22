@@ -8,6 +8,8 @@
 ## Author: MeioNeiz
 ## X-Website: https://github.com/MeioNeiz/MeterHover
 ## X-License: MIT
+## X-Curse-Project-ID: 1822547
+## X-Wago-ID: nGv9E2Kx
 ## SavedVariables: MeterHoverDB
 
 Periodic.lua
