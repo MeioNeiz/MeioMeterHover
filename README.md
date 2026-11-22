@@ -4,7 +4,7 @@ Rest the mouse on a row of **WoW Forever**'s built-in damage meter and its break
 spell list a click opens) appears beside the meter. Move away and it closes. No clicking
 through the meter row by row after a pull.
 
-![Hovering Aldren's row previews Aldren's spells](docs/preview.png)
+![Hovering Brisa's row previews Brisa's spells, with the share line under them](docs/preview.png)
 
 With [FlareUI](https://www.curseforge.com/projects/1718307)'s damage meter skin, the preview
 takes the same look:
@@ -20,6 +20,13 @@ takes the same look:
   mouse is on it.
 - **Click a row** as before: that opens Blizzard's own breakdown, Shift-click keeps it open.
   While Blizzard's breakdown is open, hovering leaves it alone.
+- **Share line** under the preview's spells, so the split is there without adding it up:
+  - Damage Done and DPS: the pet's share, then DoT ticks against direct hits (Immolate's
+    opening hit counts as direct, its ticks as DoT)
+  - Healing: Drain Life and Health Funnel against the rest
+  - Damage Taken: who hit hardest
+- **Fight summary**: hover a fight in the meter's session menu for one line: how long it
+  lasted, your DPS and your pet's share.
 - **Share line** under the preview's spells: in Damage Done and DPS, your pet's share and
   DoT ticks against direct hits; in Healing, Drain Life and Health Funnel against the rest;
   in Damage Taken, who hit hardest.
@@ -54,7 +61,7 @@ Use your addon manager, or download the zip from
 addons).
 
 MeterHover works with the game's own damage meter: turn it on in **Options > Advanced >
-Enable Damage Meter**. If it's off, MeterHover says so once at login and in `/meterhover`.
+Enable Damage Meter**. If it's off, MeterHover says so once at login and in `/meterhover help`.
 
 No other addon is needed. [FlareUI](https://www.curseforge.com/projects/1718307) is
 optional; with its meter skin the preview copies its background, border and fonts.
