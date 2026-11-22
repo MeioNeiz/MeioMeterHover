@@ -20,20 +20,38 @@ takes the same look:
   mouse is on it.
 - **Click a row** as before: that opens Blizzard's own breakdown, Shift-click keeps it open.
   While Blizzard's breakdown is open, hovering leaves it alone.
+- **Share line** under the preview's spells: in Damage Done and DPS, your pet's share and
+  DoT ticks against direct hits; in Healing, Drain Life and Health Funnel against the rest;
+  in Damage Taken, who hit hardest.
+- **Fight summary**: hover a fight in the meter's session menu for one line with how long
+  it lasted, your DPS and your pet's share.
+
+![The share line under Brisa's preview: Imp 8%, DoTs 41%, direct 51%](docs/share.png)
 
 In combat the meter's numbers are secret to addons, so the preview only works out of combat
 (the damage meter shows them, MeterHover can't read them). It closes when combat starts.
+
+Settings: Esc > Options > AddOns > MeterHover, or the addon compartment on the minimap. They
+turn each part on or off and set how long the mouse rests on a row before the preview opens.
 
 ## Commands
 
 | Command | |
 |---|---|
-| `/meterhover` | Help, and whether the damage meter is turned on |
+| `/meterhover` | Opens the settings |
+| `/meterhover help` | The list of commands, and whether the damage meter is turned on |
 | `/meterhover off`, `/meterhover on` | Turn the hover preview off or on |
+| `/meterhover delay <seconds>` | How long to rest on a row before the preview opens (0 to 1) |
+| `/meterhover share on`, `off` | The share line under the preview |
+| `/meterhover summary on`, `off` | The fight summary in the session menu |
 
 ## Install
 
-Copy `addons\MeterHover` into `_forever_\Interface\AddOns` and restart the game.
+Use your addon manager, or download the zip from
+[Releases](https://github.com/MeioNeiz/MeterHover/releases) and unzip it into
+`World of Warcraft\_forever_\Interface\AddOns`, so that you end up with
+`AddOns\MeterHover\MeterHover.toc`. Restart WoW fully (a `/reload` doesn't find new
+addons).
 
 MeterHover works with the game's own damage meter: turn it on in **Options > Advanced >
 Enable Damage Meter**. If it's off, MeterHover says so once at login and in `/meterhover`.

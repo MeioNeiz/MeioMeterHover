@@ -1,0 +1,6 @@
+{
+  "summary": "Rest the mouse on a row of the built-in damage meter to preview that player's spell breakdown.",
+  "cfCategory": "Combat",
+  "cfExtra": [],
+  "wagoCategories": ["Combat"]
+}
