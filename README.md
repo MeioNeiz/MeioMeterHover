@@ -1,78 +1,33 @@
-# MeterHover
+# Meio MeterHover
 
-Rest the mouse on a row of **WoW Forever**'s built-in damage meter and its breakdown (the
-spell list a click opens) appears beside the meter. Move away and it closes. No clicking
-through the meter row by row after a pull.
+Rest the mouse on a damage meter row to see that player's spells. No clicking.
 
-![Hovering Brisa's row previews Brisa's spells, with the share line under them](docs/preview.png)
-
-With [FlareUI](https://www.curseforge.com/projects/1718307)'s damage meter skin, the preview
-takes the same look:
-
-![The preview with FlareUI's meter skin](docs/preview-flareui.png)
+![The damage meter with the mouse on Brisa's row: before, nothing happens; with MeterHover,
+Brisa's spell breakdown shows beside the meter](docs/before-after.png)
 
 ## What it does
 
-- **Hover a row** (out of combat): after a short pause the breakdown for that player shows
-  beside the meter window, laid out with your meter's own settings (bar height, text size,
-  icons, class colours, style). Move to another row and it switches.
-- **Move onto the preview** to scroll it or to see a spell's tooltip; it stays while the
-  mouse is on it.
-- **Click a row** as before: that opens Blizzard's own breakdown, Shift-click keeps it open.
-  While Blizzard's breakdown is open, hovering leaves it alone.
-- **Share line** under the preview's spells, so the split is there without adding it up:
-  - Damage Done and DPS: the pet's share, then DoT ticks against direct hits (Immolate's
-    opening hit counts as direct, its ticks as DoT)
-  - Healing: Drain Life and Health Funnel against the rest
-  - Damage Taken: who hit hardest
-- **Fight summary**: hover a fight in the meter's session menu for one line: how long it
-  lasted, your DPS and your pet's share.
-- **Share line** under the preview's spells: in Damage Done and DPS, your pet's share and
-  DoT ticks against direct hits; in Healing, Drain Life and Health Funnel against the rest;
-  in Damage Taken, who hit hardest.
-- **Fight summary**: hover a fight in the meter's session menu for one line with how long
-  it lasted, your DPS and your pet's share.
+- Works with Blizzard's damage meter, and with FlareUI's skin
+- A share line under the spells: your pet's share, DoTs against direct hits
+- Hover a fight in the session menu for its length and your DPS
+- Clicking a row still opens Blizzard's breakdown
 
-![The share line under Brisa's preview: Imp 8%, DoTs 41%, direct 51%](docs/share.png)
+Out of combat only: in combat the game hides the meter's numbers from addons.
 
-In combat the meter's numbers are secret to addons, so the preview only works out of combat
-(the damage meter shows them, MeterHover can't read them). It closes when combat starts.
-
-Settings: Esc > Options > AddOns > MeterHover, or the addon compartment on the minimap. They
-turn each part on or off and set how long the mouse rests on a row before the preview opens.
-
-## Commands
-
-| Command | |
-|---|---|
-| `/meterhover` | Opens the settings |
-| `/meterhover help` | The list of commands, and whether the damage meter is turned on |
-| `/meterhover off`, `/meterhover on` | Turn the hover preview off or on |
-| `/meterhover delay <seconds>` | How long to rest on a row before the preview opens (0 to 1) |
-| `/meterhover share on`, `off` | The share line under the preview |
-| `/meterhover summary on`, `off` | The fight summary in the session menu |
+Settings: Esc > Options > AddOns > MeterHover, or `/meterhover`.
 
 ## Install
 
-Use your addon manager, or download the zip from
-[Releases](https://github.com/MeioNeiz/MeterHover/releases) and unzip it into
-`World of Warcraft\_forever_\Interface\AddOns`, so that you end up with
-`AddOns\MeterHover\MeterHover.toc`. Restart WoW fully (a `/reload` doesn't find new
-addons).
+Use your addon manager (CurseForge, Wago), or unzip a GitHub release into
+`World of Warcraft\_forever_\Interface\AddOns` and restart WoW fully.
 
-MeterHover works with the game's own damage meter: turn it on in **Options > Advanced >
-Enable Damage Meter**. If it's off, MeterHover says so once at login and in `/meterhover help`.
+## Feedback
 
-No other addon is needed. [FlareUI](https://www.curseforge.com/projects/1718307) is
-optional; with its meter skin the preview copies its background, border and fonts.
+Bugs and ideas: [GitHub issues](https://github.com/MeioNeiz/MeterHover/issues)
 
-## Limits
+## More Meio addons
 
-- Out of combat only (see above).
-- Death rows (Deaths meter) open Blizzard's death recap on click; they have no hover preview.
-- The preview can't be resized or moved: it sits where Blizzard's breakdown opens, with
-  its width.
-- Made and tested on an English client, game version 1.60.1.
+[Meio TrainerCompare](https://www.curseforge.com/wow/addons/trainercompare) | [Meio LeaveButton](https://www.curseforge.com/wow/addons/leavebutton) | [Meio AutoRank](https://www.curseforge.com/wow/addons/meio-autorank)
 
 ## Licence
 

@@ -1,6 +1,26 @@
 {
-  "summary": "Rest the mouse on a damage meter row to preview that player's spell breakdown, no clicking.",
+  "title": "Meio MeterHover",
+  "summary": "Rest the mouse on a damage meter row to see that player's spells, no clicking.",
   "cfCategory": "Combat",
   "cfExtra": [],
-  "wagoCategories": ["Combat"]
+  "wagoCategories": [
+    "Combat"
+  ],
+  "gallery": [
+    {
+      "file": "before-after.png",
+      "title": "Before and after",
+      "description": "Hovering a meter row: nothing, then that player's spell breakdown"
+    },
+    {
+      "file": "preview-flareui.png",
+      "title": "With FlareUI",
+      "description": "The preview takes FlareUI's damage meter skin"
+    },
+    {
+      "file": "share.png",
+      "title": "Share line",
+      "description": "Pet share, DoTs and direct hits under the spells"
+    }
+  ]
 }
