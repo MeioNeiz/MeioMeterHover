@@ -1,5 +1,6 @@
 {
   "title": "Meio MeterHover",
+  "wagoSlug": "meterhover",
   "summary": "Rest the mouse on a damage meter row to see that player's spells, no clicking.",
   "cfCategory": "Combat",
   "cfExtra": [],

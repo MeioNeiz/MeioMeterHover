@@ -2,6 +2,11 @@
 
 Rest the mouse on a damage meter row to see that player's spells. No clicking.
 
+Renamed from MeterHover. Your settings carry over if you log in once with the old MeterHover
+folder still enabled (until you disable it, MeioMeterHover stays idle and says so in chat);
+if your addon manager removed it, copy `WTF\Account\<account>\SavedVariables\MeterHover.lua`
+to `MeioMeterHover.lua` before logging in.
+
 ![The damage meter with the mouse on Brisa's row: before, nothing happens; with MeterHover,
 Brisa's spell breakdown shows beside the meter](docs/before-after.png)
 
@@ -14,7 +19,7 @@ Brisa's spell breakdown shows beside the meter](docs/before-after.png)
 
 Out of combat only: in combat the game hides the meter's numbers from addons.
 
-Settings: Esc > Options > AddOns > MeterHover, or `/meterhover`.
+Settings: Esc > Options > AddOns > MeioMeterHover, or `/meterhover`.
 
 ## Install
 
@@ -23,7 +28,7 @@ Use your addon manager (CurseForge, Wago), or unzip a GitHub release into
 
 ## Feedback
 
-Bugs and ideas: [GitHub issues](https://github.com/MeioNeiz/MeterHover/issues)
+Bugs and ideas: [GitHub issues](https://github.com/MeioNeiz/MeioMeterHover/issues)
 
 ## More Meio addons
 

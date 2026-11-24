@@ -1,4 +1,4 @@
--- MeterHover: rest the mouse on a row of Blizzard's damage meter to preview its
+-- MeioMeterHover: rest the mouse on a row of Blizzard's damage meter to preview its
 -- breakdown (the spell list a click opens). Out of combat only: in combat the meter's
 -- data is secret.
 --
@@ -8,8 +8,8 @@
 -- A click on a row stays Blizzard's own (Shift-click keeps it open).
 
 local _, ns = ...
-local NAME = "MeterHover"
-local SV_NAME = "MeterHoverDB"
+local NAME = "MeioMeterHover"
+local SV_NAME = "MeioMeterHoverDB"
 local SLASH = "/meterhover"
 local TEMPLATE = "DamageMeterSourceWindowTemplate"
 
@@ -270,8 +270,9 @@ local function SummaryText(sessionType, sessionID)
     elseif sessionID then
         ok, session = pcall(api.GetCombatSessionFromID, sessionID, damage)
     end
+    -- only the fields read below: the spec icon can be secret out of combat
     if not ok or type(session) ~= "table" or type(session.combatSources) ~= "table"
-        or AnySecret(session, 2) then
+        or IsSecret(session.durationSeconds) then
         return
     end
     local parts = {}
@@ -281,12 +282,16 @@ local function SummaryText(sessionType, sessionID)
     end
     local me
     for _, source in ipairs(session.combatSources) do
-        if type(source) == "table" and source.isLocalPlayer then me = source end
+        if type(source) == "table" then
+            if IsSecret(source.isLocalPlayer) then return end
+            if source.isLocalPlayer then me = source end
+        end
     end
     if not me then
         parts[#parts + 1] = "no damage from you"
         return table.concat(parts, ", ")
     end
+    if IsSecret(me.amountPerSecond) or IsSecret(me.totalAmount) then return end
     local dps = tonumber(me.amountPerSecond)
     if not dps and duration and duration > 0 then
         dps = (tonumber(me.totalAmount) or 0) / duration
@@ -549,26 +554,26 @@ local function RegisterSettings()
             "Out of combat only. A click on a row opens Blizzard's own breakdown;"
             .. " Shift-click keeps it open. " .. SLASH .. " help lists every command."))
     end
-    local hover = Settings.RegisterAddOnSetting(category, "METERHOVER_HOVER", "hover", db,
+    local hover = Settings.RegisterAddOnSetting(category, "MEIOMETERHOVER_HOVER", "hover", db,
         Settings.VarType.Boolean, "Preview on hover", true)
     Settings.CreateCheckbox(category, hover, "Rest the mouse on a row of Blizzard's damage"
         .. " meter to see that player's spell breakdown beside the meter, out of combat."
         .. " A click still opens Blizzard's own. " .. SLASH .. " on||off does the same.")
-    local delay = Settings.RegisterAddOnSetting(category, "METERHOVER_OPEN_DELAY",
+    local delay = Settings.RegisterAddOnSetting(category, "MEIOMETERHOVER_OPEN_DELAY",
         "openDelay", db, Settings.VarType.Number, "Open delay", DEFAULT_DELAY)
     local options = Settings.CreateSliderOptions(0, MAX_DELAY, 0.05)
     options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right,
         function(v) return ("%.2f s"):format(v) end)
     Settings.CreateSlider(category, delay, options, "How long the mouse rests on a row"
         .. " before the preview opens. " .. SLASH .. " delay <seconds> does the same.")
-    local share = Settings.RegisterAddOnSetting(category, "METERHOVER_SHARE", "share", db,
+    local share = Settings.RegisterAddOnSetting(category, "MEIOMETERHOVER_SHARE", "share", db,
         Settings.VarType.Boolean, "Share line", true)
     share:SetValueChangedCallback(function() UpdateShare() end)
     Settings.CreateCheckbox(category, share, "A line under the preview's spells. Damage"
         .. " Done and DPS: the pet's share, and DoT ticks against direct hits. Healing:"
         .. " Drain Life and Health Funnel against the rest. Damage Taken: who hit"
         .. " hardest. " .. SLASH .. " share on||off does the same.")
-    local summary = Settings.RegisterAddOnSetting(category, "METERHOVER_SUMMARY",
+    local summary = Settings.RegisterAddOnSetting(category, "MEIOMETERHOVER_SUMMARY",
         "summary", db, Settings.VarType.Boolean, "Fight summary", true)
     Settings.CreateCheckbox(category, summary, "Hover a fight in the meter's session menu"
         .. " for one line: how long it lasted, your DPS and your pet's share. Out of"
@@ -603,23 +608,43 @@ local function OpenSettings()
     end
 end
 
+-- MeterHover is this addon before the Meio rename. With its folder still loaded both
+-- would preview a row, so this one stays idle and leaves the old table to it. That folder
+-- loads after this one, so hooks wait for login to know.
+local function OldLoaded() return C_AddOns.IsAddOnLoaded("MeterHover") end
+
+local function LoadDB()
+    -- saved under the old name: a renamed file, or copied at logout while idle
+    if not OldLoaded() then
+        if not _G[SV_NAME] and type(MeterHoverDB) == "table" then
+            _G[SV_NAME] = MeterHoverDB
+        end
+        MeterHoverDB = nil
+    end
+    _G[SV_NAME] = _G[SV_NAME] or {}
+    db = _G[SV_NAME]
+    db.pos = nil -- 1.0 moved Blizzard's breakdown; the preview isn't moved
+    if db.hoverOff then db.hover = false end
+    db.hoverOff = nil
+end
+
 local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_LOGIN")
+events:RegisterEvent("PLAYER_LOGOUT")
 events:RegisterEvent("PLAYER_REGEN_DISABLED")
+local loggedIn = false
 events:SetScript("OnEvent", function(_, event, name)
     if event == "ADDON_LOADED" then
         if name == NAME then
-            _G[SV_NAME] = _G[SV_NAME] or {}
-            db = _G[SV_NAME]
-            db.pos = nil -- 1.0 moved Blizzard's breakdown; the preview isn't moved
-            if db.hoverOff then db.hover = false end
-            db.hoverOff = nil
-        elseif name == "Blizzard_DamageMeter" then
+            LoadDB()
+        elseif name == "Blizzard_DamageMeter" and loggedIn and not OldLoaded() then
             HookMeter()
             HookSessionMenu()
         end
     elseif event == "PLAYER_LOGIN" then
+        loggedIn = true
+        if OldLoaded() then return end
         HookMeter()
         HookSessionMenu()
         local ok, err = pcall(RegisterSettings)
@@ -631,13 +656,18 @@ events:SetScript("OnEvent", function(_, event, name)
         elseif not problem then
             db.toldProblem = nil
         end
+    elseif event == "PLAYER_LOGOUT" then
+        -- next time, without the old folder, we start from its settings
+        if OldLoaded() and type(MeterHoverDB) == "table" then
+            _G[SV_NAME] = MeterHoverDB
+        end
     else
         HidePreview()
     end
 end)
 
 -- .toc AddonCompartmentFunc
-function MeterHover_OnAddonCompartmentClick() OpenSettings() end
+function MeioMeterHover_OnAddonCompartmentClick() OpenSettings() end
 
 _G["SLASH_" .. NAME:upper() .. "1"] = SLASH
 SlashCmdList[NAME:upper()] = function(msg)
@@ -667,3 +697,18 @@ SlashCmdList[NAME:upper()] = function(msg)
         Help()
     end
 end
+
+-- While idle /meterhover is the old folder's: both claim the word
+local oldFolder = CreateFrame("Frame")
+oldFolder:RegisterEvent("PLAYER_LOGIN")
+oldFolder:SetScript("OnEvent", function()
+    if not OldLoaded() then return end
+    if SlashCmdList.METERHOVER then
+        SlashCmdList.MEIOMETERHOVER = SlashCmdList.METERHOVER
+        if hash_SlashCmdList then
+            hash_SlashCmdList["/METERHOVER"] = nil
+        end
+    end
+    Print("the old MeterHover addon is still enabled, so MeioMeterHover is idle: disable"
+        .. " MeterHover in the AddOns list and /reload (MeioMeterHover replaces it)")
+end)

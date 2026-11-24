@@ -1,16 +1,16 @@
 ## Interface: 16001
-## Title: MeterHover
+## Title: MeioMeterHover
 ## Notes: Rest the mouse on a row of Blizzard's damage meter to preview its breakdown.
-## Version: 1.2.0
+## Version: 1.2.1
 ## Category: Meio
 ## IconTexture: Interface\Icons\INV_Misc_Spyglass_02
-## AddonCompartmentFunc: MeterHover_OnAddonCompartmentClick
+## AddonCompartmentFunc: MeioMeterHover_OnAddonCompartmentClick
 ## Author: MeioNeiz
-## X-Website: https://github.com/MeioNeiz/MeterHover
+## X-Website: https://github.com/MeioNeiz/MeioMeterHover
 ## X-License: MIT
 ## X-Curse-Project-ID: 1822547
 ## X-Wago-ID: nGv9E2Kx
-## SavedVariables: MeterHoverDB
+## SavedVariables: MeioMeterHoverDB, MeterHoverDB
 
 Periodic.lua
-MeterHover.lua
+MeioMeterHover.lua

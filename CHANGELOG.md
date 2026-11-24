@@ -1,4 +1,13 @@
-# MeterHover
+# MeioMeterHover
+
+## 1.2.1
+
+- Renamed from MeterHover. Your settings carry over if you log in once with the old
+  MeterHover folder still enabled (until you disable it, MeioMeterHover stays idle and
+  says so in chat); if your addon manager removed it, copy
+  `WTF\Account\<account>\SavedVariables\MeterHover.lua` to `MeioMeterHover.lua` before
+  logging in.
+- Fixed: the fight summary in the meter's session menu could stay hidden out of combat
 
 ## 1.2.0
 
