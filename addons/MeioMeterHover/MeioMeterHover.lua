@@ -103,7 +103,8 @@ local function FetchBreakdown(sessionType, sessionID, meterType, data)
             details.specIconID = nil
         end
     end
-    if AnySecret(source, 3) or #source.combatSpells == 0 then return end
+    if AnySecret(source, 3) then return nil, true end
+    if #source.combatSpells == 0 then return end
     return source
 end
 
@@ -311,6 +312,242 @@ local function SummaryText(sessionType, sessionID)
     return table.concat(parts, ", ")
 end
 
+-- Report to chat: the last previewed player's top spells, read fresh when sent
+
+local REPORT_SPELLS, REPORT_MAX_SPELLS = 5, 10
+local REPORT_GAP = 5
+local CHAT_MAX = 255
+local reportTarget, reportMenu
+local lastSent = -math.huge
+
+local METER_WORD = {
+    DamageDone = "damage", Dps = "damage", HealingDone = "healing", Hps = "healing",
+    Absorbs = "absorbs", Interrupts = "interrupts", Dispels = "dispels",
+    DamageTaken = "damage taken", AvoidableDamageTaken = "avoidable damage taken",
+    EnemyDamageTaken = "damage taken",
+}
+local function MeterWord(meterType)
+    for key, word in pairs(METER_WORD) do
+        if METER_TYPE[key] == meterType then return word end
+    end
+    return "total"
+end
+
+local function Short(n)
+    local text
+    if n >= 1e6 then
+        text = ("%.1fm"):format(n / 1e6)
+    elseif n >= 1e5 then
+        return ("%dk"):format(math.floor(n / 1e3 + 0.5))
+    elseif n >= 1e3 then
+        text = ("%.1fk"):format(n / 1e3)
+    else
+        return tostring(math.floor(n + 0.5))
+    end
+    return (text:gsub("%.0([km])$", "%1"))
+end
+
+-- group = instance, raid or party chat as the player is grouped; nil when solo
+local function GroupChannel()
+    local instance = LE_PARTY_CATEGORY_INSTANCE
+    if instance and IsInGroup(instance) then return "INSTANCE_CHAT" end
+    if IsInRaid() then return "RAID" end
+    if IsInGroup() then return "PARTY" end
+end
+
+local CHANNEL_WORD = {
+    INSTANCE_CHAT = "instance chat", RAID = "raid chat", PARTY = "party chat",
+    SAY = "say", GUILD = "guild chat", WHISPER = "a whisper",
+}
+
+local function WhisperTarget()
+    if not UnitIsPlayer("target") then return end
+    local isMe = UnitIsUnit("target", "player")
+    if IsSecret(isMe) or isMe then return end
+    local name = GetUnitName("target", true)
+    if not IsSecret(name) and type(name) == "string" and name ~= "" then return name end
+end
+
+-- the target's source in its session, nil if gone, or "secret"
+local function ReportSource(t)
+    local api, ok, session = C_DamageMeter, nil, nil
+    if t.sessionType then
+        ok, session = pcall(api.GetCombatSessionFromType, t.sessionType, t.meterType)
+    elseif t.sessionID then
+        ok, session = pcall(api.GetCombatSessionFromID, t.sessionID, t.meterType)
+    end
+    if not ok or type(session) ~= "table" or type(session.combatSources) ~= "table" then
+        return
+    end
+    if IsSecret(session.durationSeconds) then return "secret" end
+    local guid, creature = t.source.sourceGUID, t.source.sourceCreatureID
+    for _, s in ipairs(session.combatSources) do
+        if type(s) == "table" then
+            if IsSecret(s.sourceGUID) or IsSecret(s.sourceCreatureID) then
+                return "secret"
+            end
+            if (guid and s.sourceGUID == guid)
+                or (not guid and creature and s.sourceCreatureID == creature) then
+                if IsSecret(s.totalAmount) or IsSecret(s.amountPerSecond)
+                    or IsSecret(s.name) then
+                    return "secret"
+                end
+                return s, tonumber(session.durationSeconds)
+            end
+        end
+    end
+end
+
+-- chat lines for the target's top n spells, or nil and "secret" / "gone"
+local function ReportLines(t, n)
+    local me, duration = ReportSource(t)
+    if me == "secret" then return nil, "secret" end
+    if not me then return nil, "gone" end
+    local breakdown, secret = FetchBreakdown(t.sessionType, t.sessionID, t.meterType, me)
+    if secret then return nil, "secret" end
+    if not breakdown then return nil, "gone" end
+
+    local byName, list, sum = {}, {}, 0
+    for _, spell in ipairs(breakdown.combatSpells) do
+        local amount = Amount(spell)
+        if amount > 0 then
+            sum = sum + amount
+            local id, who = spell.spellID, spell.creatureName
+            local name = "?"
+            if not IsSecret(id) then
+                local spellName = GetSpellName(id)
+                name = "spell " .. tostring(id)
+                if not IsSecret(spellName) and type(spellName) == "string" then
+                    name = spellName
+                end
+            end
+            if not IsSecret(who) and type(who) == "string" and who ~= "" then
+                name = ("%s (%s)"):format(name, who)
+            end
+            if not byName[name] then
+                byName[name] = { name = name, amount = 0 }
+                list[#list + 1] = byName[name]
+            end
+            byName[name].amount = byName[name].amount + amount
+        end
+    end
+    if sum <= 0 then return nil, "gone" end
+    table.sort(list, function(a, b)
+        if a.amount ~= b.amount then return a.amount > b.amount end
+        return a.name < b.name
+    end)
+
+    local total = tonumber(me.totalAmount) or sum
+    local header = ("%s: %s %s"):format(me.name or t.source.name or "?", Short(total),
+        MeterWord(t.meterType))
+    local perSecond = DAMAGE_DONE_TYPES[t.meterType] and "DPS"
+        or HEALING_TYPES[t.meterType] and "HPS"
+    local rate = tonumber(me.amountPerSecond)
+    if perSecond and not rate and duration and duration > 0 then rate = total / duration end
+    if perSecond and rate then
+        header = ("%s (%s %s)"):format(header, BreakUpLargeNumbers(math.floor(rate + 0.5)),
+            perSecond)
+    end
+    local lines, line = {}, header
+    for i = 1, math.min(n, #list) do
+        local part = ("%s %s %d%%"):format(list[i].name, Short(list[i].amount),
+            Pct(list[i].amount, sum))
+        if #line + 2 + #part > CHAT_MAX then
+            lines[#lines + 1] = line
+            line = part
+        else
+            line = line .. ", " .. part
+        end
+    end
+    lines[#lines + 1] = line
+    return lines
+end
+
+local function SendLine(text, channel, whisperTo)
+    local send = C_ChatInfo and C_ChatInfo.SendChatMessage or SendChatMessage
+    return pcall(send, text, channel, nil, whisperTo)
+end
+
+-- channel "auto": group chat, or only your own chat frame when solo; "self": yours only
+local function Report(channel, n, whisperTo)
+    local t = reportTarget
+    if not t then
+        Print("hover a player in the damage meter first, then " .. Cmd(SLASH .. " report"))
+        return
+    end
+    n = math.min(math.max(math.floor(tonumber(n) or REPORT_SPELLS), 1), REPORT_MAX_SPELLS)
+    local lines, why = ReportLines(t, n)
+    if not lines then
+        if why == "secret" or InCombatLockdown() then
+            Print("report after combat: the meter hides its numbers until then")
+        else
+            Print("that fight's numbers are gone: hover the player again")
+        end
+        return
+    end
+    local solo = channel == "auto" and not GroupChannel()
+    if channel == "auto" then channel = GroupChannel() or "self" end
+    if channel == "self" then
+        Print(lines[1])
+        for i = 2, #lines do Line(lines[i]) end
+        if solo then
+            Line("|cff999999only you see this (not in a group); right-click the chat button"
+                .. " for say or a whisper|r")
+        end
+        return
+    end
+    local now = GetTime()
+    if now - lastSent < REPORT_GAP then
+        Print(("one report every %d s: try again in a moment"):format(REPORT_GAP))
+        return
+    end
+    lastSent = now
+    for _, l in ipairs(lines) do
+        local ok, err = SendLine(l, channel, whisperTo)
+        if not ok then
+            Print("couldn't send to " .. (CHANNEL_WORD[channel] or channel) .. ": "
+                .. tostring(err))
+            return
+        end
+    end
+end
+
+local function ReportMenu()
+    if not (MenuUtil and MenuUtil.CreateContextMenu) then return end
+    local group = GroupChannel()
+    local whisper = WhisperTarget()
+    -- owned by UIParent: the menu would close with the preview, which a click outside hides
+    reportMenu = MenuUtil.CreateContextMenu(nil, function(_, root)
+        local name = reportTarget and reportTarget.source.name or "Spells"
+        root:CreateTitle(("%s's top %d spells to"):format(name, REPORT_SPELLS))
+        local g = root:CreateButton(group and CHANNEL_WORD[group]:gsub("^%l", string.upper)
+            or "Party chat", function() Report(group) end)
+        if not group then g:SetEnabled(false) end
+        root:CreateButton("Say", function() Report("SAY") end)
+        if IsInGuild() then
+            root:CreateButton("Guild chat", function() Report("GUILD") end)
+        end
+        if whisper then
+            root:CreateButton("Whisper " .. whisper, function()
+                Report("WHISPER", nil, whisper)
+            end)
+        end
+        root:CreateButton("Only me", function() Report("self") end)
+    end)
+end
+
+local function ReportButtonTooltip(button)
+    local name = reportTarget and reportTarget.source.name or "this player"
+    local group = GroupChannel()
+    GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
+    GameTooltip:SetText("Report to chat")
+    GameTooltip:AddLine(("Click: %s's top %d spells to %s"):format(name, REPORT_SPELLS,
+        group and CHANNEL_WORD[group] or "your chat only (not in a group)"), 1, 1, 1, true)
+    GameTooltip:AddLine("Right-click: say, guild or a whisper to your target",
+        1, 1, 1, true)
+    GameTooltip:Show()
+end
+
 local function SetEntryFonts(entry)
     local fonts, bar = preview and preview.fonts, entry.StatusBar
     if not fonts or not bar or not bar.Name or not bar.Value then return end
@@ -343,6 +580,20 @@ local function CreatePreview()
     share:SetJustifyH("LEFT")
     share:SetWordWrap(false)
     frame.Share = share
+    local report = CreateFrame("Button", nil, frame)
+    report:SetSize(18, 18)
+    report:SetPoint("BOTTOMRIGHT", -3, 0)
+    report:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIcon-Chat-Up")
+    report:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-Chat-Down")
+    report:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+    report:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    report:SetScript("OnClick", function(_, button)
+        GameTooltip:Hide()
+        if button == "RightButton" then ReportMenu() else Report("auto") end
+    end)
+    report:SetScript("OnEnter", ReportButtonTooltip)
+    report:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    frame.Report = report
     preview = frame
     return preview
 end
@@ -419,6 +670,9 @@ local function ShowPreview(row)
     p:SetBackgroundAlpha(window:GetBackgroundAlpha())
     p:SetSource(source)
     p.shareSource = source
+    reportTarget = { sessionType = window:GetSessionType(),
+        sessionID = window:GetSessionID(), meterType = window:GetDamageMeterType(),
+        source = source }
     p:SetSticky(false)
     -- always take the meter window's height, as Blizzard's does the first time it opens
     p.previousSessionWindowCenterX = nil
@@ -456,7 +710,8 @@ poller:SetScript("OnUpdate", function(self)
         local window = shown.window
         if not window or not window:IsVisible() or window:GetSourceWindow():IsShown() then
             HidePreview()
-        elseif (shown.row and shown.row:IsMouseOver()) or preview:IsMouseOver() then
+        elseif (shown.row and shown.row:IsMouseOver()) or preview:IsMouseOver()
+            or preview.Report:IsMouseOver() or (reportMenu and reportMenu:IsShown()) then
             shown.awaySince = nil
         elseif not shown.awaySince then
             shown.awaySince = now
@@ -552,7 +807,8 @@ local function RegisterSettings()
     if layout and CreateSettingsListSectionHeaderInitializer then
         layout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Hover preview",
             "Out of combat only. A click on a row opens Blizzard's own breakdown;"
-            .. " Shift-click keeps it open. " .. SLASH .. " help lists every command."))
+            .. " Shift-click keeps it open. The chat bubble in the preview's corner reports"
+            .. " the spells to chat. " .. SLASH .. " help lists every command."))
     end
     local hover = Settings.RegisterAddOnSetting(category, "MEIOMETERHOVER_HOVER", "hover", db,
         Settings.VarType.Boolean, "Preview on hover", true)
@@ -584,9 +840,14 @@ local function RegisterSettings()
 end
 
 local function Help()
-    Print("rest the mouse on a damage meter row to preview its breakdown (out of combat)")
+    local problem = MeterProblem()
+    Print("rest the mouse on a damage meter row to preview its breakdown (out of combat);"
+        .. " Shift-click keeps it open" .. (problem and (". |cffff8080" .. problem .. "|r") or ""))
     Line(Cmd(SLASH .. " on||off") .. " - the hover preview (now " .. OnOff(db.hover ~= false)
         .. ")")
+    Line(Cmd(SLASH .. " report [n]") .. (" - post the last previewed player's top n"
+        .. " spells (%d if left out) to group chat, or only to you when solo")
+        :format(REPORT_SPELLS))
     Line(Cmd(SLASH .. " delay <seconds>") .. (" - wait before the preview opens (now %.2f)")
         :format(OpenDelay()))
     Line(Cmd(SLASH .. " share on||off") .. " - share line under the preview: pet and DoTs,"
@@ -594,9 +855,6 @@ local function Help()
     Line(Cmd(SLASH .. " summary on||off") .. " - fight summary in the meter's session menu"
         .. " (now " .. OnOff(db.summary ~= false) .. ")")
     Line(Cmd(SLASH .. " help") .. " - this list")
-    Line("|cff999999Click a row for Blizzard's own breakdown; Shift-click keeps it open.|r")
-    local problem = MeterProblem()
-    if problem then Line("|cffff8080" .. problem .. "|r") end
     Line("Settings: " .. SETTINGS_PATH .. " (" .. Cmd(SLASH .. " settings") .. ")")
 end
 
@@ -687,6 +945,8 @@ SlashCmdList[NAME:upper()] = function(msg)
     elseif word == "summary" and (rest == "on" or rest == "off") then
         Set("summary", rest == "on")
         Print("fight summary " .. OnOff(rest == "on"))
+    elseif word == "report" and (rest == "" or tonumber(rest)) then
+        Report("auto", tonumber(rest))
     elseif word == "delay" and tonumber(rest) then
         local d = math.min(math.max(tonumber(rest), 0), MAX_DELAY)
         d = math.floor(d * 20 + 0.5) / 20

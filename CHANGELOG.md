@@ -1,5 +1,12 @@
 # MeioMeterHover
 
+## 1.2.2
+
+- Report to chat: the chat bubble on the preview posts that player's top spells to party or
+  raid (shown only to you when solo); right-click it for say, guild or a whisper to your
+  target. `/meterhover report [n]` does the same for the last player you looked at
+- `/meterhover help` lists each command on its own line
+
 ## 1.2.1
 
 - Renamed from MeterHover. Your settings carry over if you log in once with the old
