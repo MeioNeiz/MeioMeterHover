@@ -17,6 +17,9 @@ Hover, Brisa's spell breakdown shows beside the meter](docs/before-after.png)
   right-click it for say, guild or a whisper
 - Clicking a row still opens Blizzard's breakdown
 
+![The meter's session menu with the mouse on the Hogger fight: beside it, Duration 01:12,
+DPS 918, Imp 8%](docs/fight-summary.png)
+
 Out of combat only: in combat the game hides the meter's numbers from addons.
 
 Settings: Esc > Options > AddOns > MeioMeterHover, or `/meterhover`.
