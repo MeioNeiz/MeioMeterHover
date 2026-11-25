@@ -1,7 +1,7 @@
 {
-  "title": "Meio MeterHover",
+  "title": "Meio Meter Hover",
   "wagoSlug": "meterhover",
-  "summary": "Rest the mouse on a damage meter row to see that player's spells, no clicking.",
+  "summary": "Hover a player in Blizzard's damage meter to see their spells, no clicking.",
   "cfCategory": "Combat",
   "cfExtra": [],
   "wagoCategories": [
