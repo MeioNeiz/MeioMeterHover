@@ -11,7 +11,7 @@
     {
       "file": "before-after.png",
       "title": "Before and after",
-      "description": "Hovering a meter row: nothing, then that player's spell breakdown"
+      "description": "Hovering Brisa's meter row: nothing, then her spells beside the meter"
     },
     {
       "file": "preview-flareui.png",
@@ -21,7 +21,7 @@
     {
       "file": "share.png",
       "title": "Share line",
-      "description": "Pet share, DoTs and direct hits under the spells"
+      "description": "The share line under the spells: the pet's part, DoT ticks and direct hits"
     }
   ]
 }
