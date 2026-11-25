@@ -15,6 +15,8 @@ Renamed from MeterHover: see [Keeping your settings](#keeping-your-settings).
 - Works with Blizzard's damage meter, and with FlareUI's skin
 - A share line under the spells: your pet's share, DoTs against direct hits
 - Hover a fight in the session menu for its length and your DPS
+- The chat bubble on the preview posts that player's top spells to party or raid;
+  right-click it for say, guild or a whisper
 - Clicking a row still opens Blizzard's breakdown
 
 Out of combat only: in combat the game hides the meter's numbers from addons.
