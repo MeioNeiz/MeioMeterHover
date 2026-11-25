@@ -8,8 +8,6 @@ For WoW Forever.
 ![The damage meter with the mouse on Brisa's row: before, nothing happens; with Meio Meter
 Hover, Brisa's spell breakdown shows beside the meter](docs/before-after.png)
 
-Renamed from MeterHover: see [Keeping your settings](#keeping-your-settings).
-
 ## What it does
 
 - Works with Blizzard's damage meter, and with FlareUI's skin
@@ -26,13 +24,6 @@ Settings: Esc > Options > AddOns > MeioMeterHover, or `/meterhover`.
 ## Coming soon
 
 - Your own spells: casts and average per cast
-
-## Keeping your settings
-
-Renamed from MeterHover. Your settings carry over if you log in once with the old MeterHover
-folder still enabled (until you disable it, MeioMeterHover stays idle and says so in chat);
-if your addon manager removed it, copy `WTF\Account\<account>\SavedVariables\MeterHover.lua`
-to `MeioMeterHover.lua` before logging in.
 
 ## Install
 
