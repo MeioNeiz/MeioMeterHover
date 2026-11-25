@@ -22,6 +22,11 @@
       "file": "share.png",
       "title": "Share line",
       "description": "The share line under the spells: the pet's part, DoT ticks and direct hits"
+    },
+    {
+      "file": "fight-summary.png",
+      "title": "Fight summary",
+      "description": "Point at a fight in the meter's session menu: its length, your DPS and your pet's share"
     }
   ]
 }
