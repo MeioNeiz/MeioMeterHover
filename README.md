@@ -21,6 +21,10 @@ Out of combat only: in combat the game hides the meter's numbers from addons.
 
 Settings: Esc > Options > AddOns > MeioMeterHover, or `/meterhover`.
 
+## Coming soon
+
+- Your own spells: casts and average per cast
+
 ## Keeping your settings
 
 Renamed from MeterHover. Your settings carry over if you log in once with the old MeterHover
