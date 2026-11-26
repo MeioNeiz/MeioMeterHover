@@ -16,6 +16,11 @@ local TEMPLATE = "DamageMeterSourceWindowTemplate"
 local DEFAULT_DELAY = 0.15
 local MAX_DELAY = 1
 local CLOSE_DELAY = 0.3
+-- preview layout: share line and report button between the backdrop's bottom border and
+-- the list
+local STRIP_BOTTOM = 18
+local LIST_BOTTOM = 33
+local BLIZZARD_LIST_BOTTOM = 17
 local SETTINGS_PATH = "Esc > Options > AddOns > " .. NAME
 
 local db = {}
@@ -44,6 +49,15 @@ local function OpenDelay()
 end
 
 -- through the Setting when the panel exists, so an open panel shows the change
+-- "Your casts" ships hidden until checked in game: off unless turned on by slash, and kept
+-- out of help and Settings. To release: true, and README Coming soon to features.
+ns.CASTS_LISTED = false
+local function CastsOn()
+    if db.casts == nil then return ns.CASTS_LISTED end
+    return db.casts
+end
+ns.CastsOn = CastsOn
+
 local function Set(key, value)
     if settings[key] then settings[key]:SetValue(value) else db[key] = value end
 end
@@ -548,11 +562,131 @@ local function ReportButtonTooltip(button)
     GameTooltip:Show()
 end
 
+-- Your casts beside each of your spells: only on your own row, damage and healing meters
+
+local CASTS_TYPES = {}
+for t in pairs(DAMAGE_DONE_TYPES) do CASTS_TYPES[t] = true end
+for t in pairs(HEALING_TYPES) do CASTS_TYPES[t] = true end
+local CAST_GAP, NAME_GAP = 16, 8
+-- the short form may cut a long name down to this, never further
+local MIN_NAME = 70
+-- Blizzard's own gap between an entry's name and value (DamageMeterEntryMixin)
+local BLIZZARD_NAME_GAP = 25
+local castText = setmetatable({}, { __mode = "k" })
+
+local function CastContext(window, source, breakdown)
+    local meterType = window:GetDamageMeterType()
+    if not source.isLocalPlayer or not CASTS_TYPES[meterType] then return end
+    local counts = ns.SessionCasts(window:GetSessionType(), window:GetSessionID())
+    if not counts then return end
+    local ownRows = {}
+    for _, spell in ipairs(breakdown.combatSpells) do
+        if type(spell) == "table" and spell.spellID then ownRows[spell.spellID] = true end
+    end
+    return { counts = counts, ownRows = ownRows }
+end
+
+local function PerCast(n)
+    local ok, text = pcall(AbbreviateLargeNumbers, math.floor(n + 0.5))
+    if ok and type(text) == "string" and text ~= "" then return text end
+    return Short(n)
+end
+
+-- casts and amount per cast for an entry of the preview, or nil
+local function EntryCasts(entry)
+    local context = preview and preview.casts
+    if not CastsOn() or not context then return end
+    local pet, amount = entry.creatureName, entry.value
+    if IsSecret(pet) or IsSecret(amount) or type(amount) ~= "number" or amount <= 0 then
+        return
+    end
+    if type(pet) == "string" and pet ~= "" then return end
+    local n = ns.CastsFor(context.counts, entry.spellID, context.ownRows)
+    if n then return n, amount / n end
+end
+
+local function Width(fs)
+    if fs.GetUnboundedStringWidth then return fs:GetUnboundedStringWidth() end
+    return fs:GetStringWidth()
+end
+
+-- our own fontstring left of the value; the name ends where it starts
+local function UpdateCasts(entry)
+    local bar = entry.StatusBar
+    if not bar or not bar.Name or not bar.Value then return end
+    local fs = castText[entry]
+    local n, each = EntryCasts(entry)
+    local function Hide()
+        if fs and fs:IsShown() then
+            fs:Hide()
+            bar.Name:SetPoint("RIGHT", bar.Value, "LEFT", -BLIZZARD_NAME_GAP, 0)
+        end
+    end
+    if not n then return Hide() end
+    if not fs then
+        fs = bar:CreateFontString(nil, "OVERLAY")
+        fs:SetJustifyH("RIGHT")
+        fs:SetWordWrap(false)
+        castText[entry] = fs
+    end
+    -- an outline keeps the grey readable where it crosses the gold bar fill
+    local face, size, flags = bar.Value:GetFont()
+    flags = flags or ""
+    if not flags:find("OUTLINE") then
+        flags = flags == "" and "OUTLINE" or flags .. ",OUTLINE"
+    end
+    if face and size then
+        fs:SetFont(face, size, flags)
+    else
+        fs:SetFontObject(NumberFontNormal)
+    end
+    fs:SetTextScale(bar.Value:GetTextScale())
+    fs:SetTextColor(0.9, 0.9, 0.9)
+    fs:SetShadowColor(bar.Value:GetShadowColor())
+    fs:SetShadowOffset(bar.Value:GetShadowOffset())
+    fs:ClearAllPoints()
+    fs:SetPoint("RIGHT", bar.Value, "LEFT", -CAST_GAP, 0)
+    local per = PerCast(each)
+    fs:SetText(("%d %s, %s each"):format(n, n == 1 and "cast" or "casts", per))
+    local name = Width(bar.Name)
+    local room = bar:GetWidth() - 5 - NAME_GAP - CAST_GAP - Width(bar.Value)
+    local form = "long"
+    if preview.castsShort or Width(fs) > room - name then
+        form = "short"
+        fs:SetText(("%d x %s"):format(n, per))
+        if Width(fs) > room - math.min(name, MIN_NAME) then return Hide() end
+    end
+    fs:Show()
+    bar.Name:SetPoint("RIGHT", fs, "LEFT", -NAME_GAP, 0)
+    return form
+end
+
+local hookedEntries = setmetatable({}, { __mode = "k" })
+local function HookEntry(entry)
+    if hookedEntries[entry] or not entry.UpdateStyle then return end
+    hookedEntries[entry] = true
+    -- a style change re-anchors the name to the value
+    hooksecurefunc(entry, "UpdateStyle", UpdateCasts)
+end
+
+-- one form for the whole list: short everywhere once one entry needs it
+local function RefreshCasts()
+    if not preview then return end
+    local box, short = preview:GetScrollBox(), false
+    preview.castsShort = false
+    box:ForEachFrame(function(entry) short = UpdateCasts(entry) == "short" or short end)
+    if short then
+        preview.castsShort = true
+        box:ForEachFrame(UpdateCasts)
+    end
+end
+
 local function SetEntryFonts(entry)
     local fonts, bar = preview and preview.fonts, entry.StatusBar
     if not fonts or not bar or not bar.Name or not bar.Value then return end
     bar.Name:SetFont(unpack(fonts.name))
     bar.Value:SetFont(unpack(fonts.value))
+    UpdateCasts(entry)
 end
 
 local function CreatePreview()
@@ -573,16 +707,36 @@ local function CreatePreview()
     ScrollUtil.AddAcquiredFrameCallback(frame:GetScrollBox(), function(_, entry)
         SetEntryFonts(entry)
     end)
-    -- in the strip under the spell list (Blizzard insets the list 17 px from the bottom)
+    ScrollUtil.AddInitializedFrameCallback(frame:GetScrollBox(), function(_, entry)
+        HookEntry(entry)
+        UpdateCasts(entry)
+    end, castText)
+    -- Blizzard's backdrop draws its bottom border ~14 px up (shadow below it) and ends the
+    -- list at 17 px: no room inside the border, so lift the list for a strip of our own.
+    -- Blizzard re-anchors the list when its scroll bar shows or hides: lift it again.
+    local box = frame:GetScrollBox()
+    local function PlaceList()
+        for i = 1, box:GetNumPoints() do
+            local point, rel, relPoint, x, y = box:GetPoint(i)
+            if point == "BOTTOMRIGHT" then
+                if y ~= LIST_BOTTOM then box:SetPoint(point, rel, relPoint, x, LIST_BOTTOM) end
+                return
+            end
+        end
+    end
+    hooksecurefunc(box, "SetPoint", function(_, point)
+        if point == "BOTTOMRIGHT" then PlaceList() end
+    end)
+    PlaceList()
     local share = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    share:SetPoint("BOTTOMLEFT", 20, 3)
-    share:SetPoint("BOTTOMRIGHT", -22, 3)
+    share:SetPoint("BOTTOMLEFT", 20, STRIP_BOTTOM)
+    share:SetPoint("BOTTOMRIGHT", -42, STRIP_BOTTOM)
     share:SetJustifyH("LEFT")
     share:SetWordWrap(false)
     frame.Share = share
     local report = CreateFrame("Button", nil, frame)
     report:SetSize(18, 18)
-    report:SetPoint("BOTTOMRIGHT", -3, 0)
+    report:SetPoint("BOTTOMRIGHT", -20, STRIP_BOTTOM - 4)
     report:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIcon-Chat-Up")
     report:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIcon-Chat-Down")
     report:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
@@ -659,6 +813,8 @@ local function ShowPreview(row)
 
     local p = preview
     p.checkedSource = breakdown
+    -- before the session is set: setting it fills the entries
+    p.casts = CastContext(window, source, breakdown)
     p:SetDamageMeterType(window:GetDamageMeterType())
     p:SetSession(window:GetSessionType(), window:GetSessionID())
     p:SetUseClassColor(window:ShouldUseClassColor())
@@ -677,12 +833,17 @@ local function ShowPreview(row)
     -- always take the meter window's height, as Blizzard's does the first time it opens
     p.previousSessionWindowCenterX = nil
     p:AnchorToSessionWindow(window)
+    -- reach down past the meter by our strip, so the list shows as many rows as Blizzard's
+    local right = p.isRightSide
+    p:SetPoint(right and "BOTTOMLEFT" or "BOTTOMRIGHT", window,
+        right and "BOTTOMRIGHT" or "BOTTOMLEFT", 0, BLIZZARD_LIST_BOTTOM - LIST_BOTTOM)
     local width = real:GetWidth()
     if width and width > 0 then p:SetWidth(width) end
     p:SetAlpha(window:GetEffectiveAlpha())
     p:Show()
     CopySkin(real, row)
     UpdateShare()
+    RefreshCasts()
     shown.row, shown.window, shown.awaySince = row, window, nil
 end
 
@@ -829,6 +990,16 @@ local function RegisterSettings()
         .. " Done and DPS: the pet's share, and DoT ticks against direct hits. Healing:"
         .. " Drain Life and Health Funnel against the rest. Damage Taken: who hit"
         .. " hardest. " .. SLASH .. " share on||off does the same.")
+    local casts
+    if ns.CASTS_LISTED then
+        casts = Settings.RegisterAddOnSetting(category, "MEIOMETERHOVER_CASTS", "casts",
+            db, Settings.VarType.Boolean, "Your casts", true)
+        casts:SetValueChangedCallback(function() RefreshCasts() end)
+        Settings.CreateCheckbox(category, casts, "On your own row, each spell shows how"
+            .. " often you cast it that fight and how much it did per cast. Damage Done, DPS"
+            .. " and healing only. Counted while you play, so fights from before a /reload"
+            .. " show none. " .. SLASH .. " casts on||off does the same.")
+    end
     local summary = Settings.RegisterAddOnSetting(category, "MEIOMETERHOVER_SUMMARY",
         "summary", db, Settings.VarType.Boolean, "Fight summary", true)
     Settings.CreateCheckbox(category, summary, "Hover a fight in the meter's session menu"
@@ -837,6 +1008,7 @@ local function RegisterSettings()
     Settings.RegisterAddOnCategory(category)
     settings.hover, settings.openDelay, settings.share = hover, delay, share
     settings.summary = summary
+    settings.casts = casts
 end
 
 local function Help()
@@ -852,6 +1024,10 @@ local function Help()
         :format(OpenDelay()))
     Line(Cmd(SLASH .. " share on||off") .. " - share line under the preview: pet and DoTs,"
         .. " Drain Life, top attacker (now " .. OnOff(db.share ~= false) .. ")")
+    if ns.CASTS_LISTED then
+        Line(Cmd(SLASH .. " casts on||off") .. " - on your own row: casts and amount per"
+            .. " cast for each spell (now " .. OnOff(CastsOn()) .. ")")
+    end
     Line(Cmd(SLASH .. " summary on||off") .. " - fight summary in the meter's session menu"
         .. " (now " .. OnOff(db.summary ~= false) .. ")")
     Line(Cmd(SLASH .. " help") .. " - this list")
@@ -942,6 +1118,10 @@ SlashCmdList[NAME:upper()] = function(msg)
         Set("share", rest == "on")
         UpdateShare()
         Print("share line " .. OnOff(rest == "on"))
+    elseif word == "casts" and (rest == "on" or rest == "off") then
+        Set("casts", rest == "on")
+        RefreshCasts()
+        Print("your casts " .. OnOff(rest == "on"))
     elseif word == "summary" and (rest == "on" or rest == "off") then
         Set("summary", rest == "on")
         Print("fight summary " .. OnOff(rest == "on"))

@@ -1,5 +1,11 @@
 # MeioMeterHover
 
+## 1.2.3
+
+- Fixed: the share line under the preview ("Imp 8%, DoTs 41%") sat on the window's bottom
+  border. It now has its own strip inside the border, with the chat bubble beside it, and
+  the preview still shows as many spells as Blizzard's own breakdown
+
 ## 1.2.2
 
 - Report to chat: the chat bubble on the preview posts that player's top spells to party or

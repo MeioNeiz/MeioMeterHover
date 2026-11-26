@@ -26,7 +26,8 @@ Settings: Esc > Options > AddOns > MeioMeterHover, or `/meterhover`.
 
 ## Coming soon
 
-- Your own spells: casts and average per cast
+- On your own row in Blizzard's meter: how many times you cast each spell and what each
+  cast did
 
 ## Install
 
