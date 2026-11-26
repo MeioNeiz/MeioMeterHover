@@ -1,7 +1,7 @@
 # Meio Meter Hover
 
-Rest the mouse on a damage meter row to see that player's spells. No clicking. Not a meter:
-it adds the hover to Blizzard's own.
+Using Blizzard's own damage meter? Rest the mouse on a row to see that player's spells, no
+clicking. Not a meter: it adds the hover to Blizzard's own.
 
 For WoW Forever.
 
