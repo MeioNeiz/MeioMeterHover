@@ -21,6 +21,9 @@ local CLOSE_DELAY = 0.3
 local STRIP_BOTTOM = 18
 local LIST_BOTTOM = 33
 local BLIZZARD_LIST_BOTTOM = 17
+local BLIZZARD_LIST_TOP = 15
+local BLIZZARD_MIN_WIDTH = 200
+local MAX_ROWS = 10
 local SETTINGS_PATH = "Esc > Options > AddOns > " .. NAME
 
 local db = {}
@@ -611,7 +614,7 @@ local function Width(fs)
 end
 
 -- our own fontstring left of the value; the name ends where it starts
-local function UpdateCasts(entry)
+local function UpdateEntryCasts(entry)
     local bar = entry.StatusBar
     if not bar or not bar.Name or not bar.Value then return end
     local fs = castText[entry]
@@ -661,24 +664,35 @@ local function UpdateCasts(entry)
     return form
 end
 
+-- one form for the whole list: short everywhere once one entry needs it, also when a row
+-- is laid out again after the others (scrolled in, resized)
+local refreshing = false
+local function RefreshCasts()
+    if not preview or refreshing then return end
+    refreshing = true
+    local box, short = preview:GetScrollBox(), false
+    preview.castsShort = false
+    box:ForEachFrame(function(entry) short = UpdateEntryCasts(entry) == "short" or short end)
+    if short then
+        preview.castsShort = true
+        -- ForEachFrame stops at the first callback that returns a value
+        box:ForEachFrame(function(entry) UpdateEntryCasts(entry) end)
+    end
+    refreshing = false
+end
+
+local function UpdateCasts(entry)
+    local form = UpdateEntryCasts(entry)
+    if form == "short" and not refreshing and not preview.castsShort then RefreshCasts() end
+    return form
+end
+
 local hookedEntries = setmetatable({}, { __mode = "k" })
 local function HookEntry(entry)
     if hookedEntries[entry] or not entry.UpdateStyle then return end
     hookedEntries[entry] = true
     -- a style change re-anchors the name to the value
     hooksecurefunc(entry, "UpdateStyle", UpdateCasts)
-end
-
--- one form for the whole list: short everywhere once one entry needs it
-local function RefreshCasts()
-    if not preview then return end
-    local box, short = preview:GetScrollBox(), false
-    preview.castsShort = false
-    box:ForEachFrame(function(entry) short = UpdateCasts(entry) == "short" or short end)
-    if short then
-        preview.castsShort = true
-        box:ForEachFrame(UpdateCasts)
-    end
 end
 
 local function SetEntryFonts(entry)
@@ -835,10 +849,19 @@ local function ShowPreview(row)
     p:AnchorToSessionWindow(window)
     -- reach down past the meter by our strip, so the list shows as many rows as Blizzard's
     local right = p.isRightSide
+    -- and further when taller rows (the meter's style) would scroll spells out of sight
+    local box = p:GetScrollBox()
+    local provider = box:GetDataProvider()
+    local rows = math.min(provider and provider:GetSize() or 0, MAX_ROWS)
+    local need = BLIZZARD_LIST_TOP + LIST_BOTTOM + rows * p:GetBarHeight()
+        + math.max(rows - 1, 0) * p:GetBarSpacing()
+    local reach = window:GetHeight() + LIST_BOTTOM - BLIZZARD_LIST_BOTTOM
+    local extra = math.max(math.ceil(need - reach), 0)
     p:SetPoint(right and "BOTTOMLEFT" or "BOTTOMRIGHT", window,
-        right and "BOTTOMRIGHT" or "BOTTOMLEFT", 0, BLIZZARD_LIST_BOTTOM - LIST_BOTTOM)
+        right and "BOTTOMRIGHT" or "BOTTOMLEFT", 0, BLIZZARD_LIST_BOTTOM - LIST_BOTTOM - extra)
+    -- the meter can be narrower than Blizzard lets its breakdown be: values would cover icons
     local width = real:GetWidth()
-    if width and width > 0 then p:SetWidth(width) end
+    if width and width > 0 then p:SetWidth(math.max(width, BLIZZARD_MIN_WIDTH)) end
     p:SetAlpha(window:GetEffectiveAlpha())
     p:Show()
     CopySkin(real, row)

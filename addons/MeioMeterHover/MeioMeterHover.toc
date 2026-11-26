@@ -1,7 +1,7 @@
 ## Interface: 16001
 ## Title: MeioMeterHover
 ## Notes: Rest the mouse on a row of Blizzard's damage meter to preview its breakdown.
-## Version: 1.2.3
+## Version: 1.2.4
 ## Category: Meio
 ## IconTexture: Interface\Icons\INV_Misc_Spyglass_02
 ## AddonCompartmentFunc: MeioMeterHover_OnAddonCompartmentClick

@@ -1,5 +1,12 @@
 # MeioMeterHover
 
+## 1.2.4
+
+- Fixed: in taller meter styles the preview scrolled its last spell out of sight. It now
+  reaches down far enough to show every spell (up to 10)
+- Fixed: on a very narrow meter the preview's values ran over the spell icons; it now keeps
+  at least Blizzard's own minimum width
+
 ## 1.2.3
 
 - Fixed: the share line under the preview ("Imp 8%, DoTs 41%") sat on the window's bottom
